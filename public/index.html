@@ -14,7 +14,16 @@
   * { box-sizing: border-box; margin: 0; font-family: 'Sarabun', 'Segoe UI', sans-serif; }
   body { background: var(--bg); min-height: 100vh; display: flex; justify-content: center; }
   .app { width: 100%; max-width: 430px; padding: 16px; }
-  .app.wide { max-width: 980px; }
+  /* หน้าแอดมิน: เต็มความกว้างจอ */
+  .app.wide { max-width: none; padding: 16px 24px; }
+  /* หน้าลงเวลาบนจอกว้าง: ปุ่มลงเวลา | ประวัติ วางข้างกัน */
+  @media (min-width: 900px) {
+    .app.main { max-width: 1200px; display: grid; grid-template-columns: minmax(380px, 1fr) 1.2fr;
+                column-gap: 18px; align-items: start; padding: 24px; }
+    .app.main .head { grid-column: 1 / -1; }
+    .app.main .clock .time { font-size: 3.4rem; }
+    .app.main #histCard { max-height: calc(100vh - 190px); overflow-y: auto; }
+  }
 
   .head { background: var(--navy); color: #fff; border-radius: 14px; padding: 18px; text-align: center; }
   .head h1 { font-size: 1.15rem; }
@@ -288,6 +297,7 @@
     $('histCard').classList.toggle('hidden', view !== 'main');
     $('adminView').classList.toggle('hidden', view !== 'admin');
     $('app').classList.toggle('wide', view === 'admin');
+    $('app').classList.toggle('main', view === 'main');
     window.scrollTo(0, 0);
   }
 
