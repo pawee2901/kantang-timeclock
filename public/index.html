@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1a3a6b">
+<title>ระบบลงเวลา วก.กันตัง</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B0%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --navy: #1a3a6b; --gold: #c9a227; --bg: #f4f6fa;
+    --ok: #1e7e34; --warn: #b45309; --err: #b91c1c; --muted: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; font-family: 'Sarabun', 'Segoe UI', sans-serif; }
+  body { background: var(--bg); min-height: 100vh; display: flex; justify-content: center; }
+  .app { width: 100%; max-width: 430px; padding: 16px; }
+  .app.wide { max-width: 980px; }
+
+  .head { background: var(--navy); color: #fff; border-radius: 14px; padding: 18px; text-align: center; }
+  .head h1 { font-size: 1.15rem; }
+  .head p { font-size: .85rem; opacity: .85; margin-top: 4px; }
+
+  .card { background: #fff; border-radius: 14px; padding: 18px; margin-top: 14px;
+          box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card h2 { font-size: 1.05rem; color: var(--navy); margin-bottom: 6px; }
+
+  label { font-size: .9rem; color: #333; display: block; margin: 10px 0 4px; }
+  input, select { width: 100%; padding: 12px; font-size: 1.05rem; border: 1px solid #ccc;
+                  border-radius: 10px; background: #fff; }
+  input[readonly] { background: #f1f1f1; color: #555; }
+
+  button { width: 100%; padding: 14px; font-size: 1.1rem; border: 0; border-radius: 12px;
+           color: #fff; cursor: pointer; margin-top: 12px; }
+  button:disabled { opacity: .55; }
+  .btn-navy { background: var(--navy); }
+  .btn-in  { background: var(--ok); }
+  .btn-out { background: var(--warn); }
+  .btn-gold { background: var(--gold); color: #1f1f1f; }
+  .btn-link { background: none; color: var(--navy); text-decoration: underline;
+              font-size: .85rem; padding: 6px; }
+  .btn-sm { width: auto; padding: 8px 14px; font-size: .9rem; margin: 0; border-radius: 9px; }
+  .btn-ghost { background: #eef3fb; color: var(--navy); }
+
+  .clock { text-align: center; margin: 6px 0 2px; }
+  .clock .time { font-size: 2.4rem; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .clock .date { font-size: .95rem; color: #555; }
+
+  .msg { margin-top: 12px; padding: 12px; border-radius: 10px; font-size: .95rem; display: none; }
+  .msg.ok   { display: block; background: #e7f6ec; color: var(--ok); }
+  .msg.err  { display: block; background: #fdecea; color: var(--err); }
+  .msg.info { display: block; background: #eef3fb; color: var(--navy); }
+
+  .tbl-wrap { overflow-x: auto; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: center; white-space: nowrap; }
+  th { color: var(--navy); background: #f8fafd; }
+  td.l, th.l { text-align: left; }
+  .late { color: var(--err); font-weight: 600; }
+  .none { color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .78rem; }
+  .badge.admin { background: #fdf3d7; color: #7a5d00; }
+  .badge.off { background: #eee; color: #666; }
+  .badge.nopin { background: #fdecea; color: var(--err); }
+
+  .hidden { display: none !important; }
+  .who { text-align: center; font-size: .95rem; color: #333; margin-bottom: 4px; }
+  .who b { color: var(--navy); }
+
+  /* แอดมิน */
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tabs button { width: auto; flex: 1 1 auto; margin: 0; padding: 10px 12px; font-size: .92rem;
+                 background: #fff; color: var(--navy); border: 1px solid #d5dcea; }
+  .tabs button.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar input, .bar select { width: auto; flex: 1 1 160px; padding: 9px 10px; font-size: .95rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .stat { flex: 1 1 110px; background: #f8fafd; border-radius: 10px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 1.5rem; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .82rem; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="head">
+    <h1>⏰ ระบบลงเวลาปฏิบัติงานออนไลน์</h1>
+    <p>วิทยาลัยการอาชีพกันตัง</p>
+  </div>
+
+  <!-- หน้าเข้าสู่ระบบ -->
+  <div id="loginView" class="card hidden">
+    <label>รหัสบุคลากร</label>
+    <input id="empId" inputmode="text" autocomplete="username" placeholder="เช่น T001">
+    <label>PIN (ตัวเลข 4–6 หลัก)</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••"
+           onkeydown="if (event.key === 'Enter') doLogin()">
+    <button class="btn-navy" id="btnLogin" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+
+  <!-- หน้าลงเวลา -->
+  <div id="mainView" class="card hidden">
+    <div class="who">สวัสดี <b id="whoName"></b> <span id="whoPos"></span></div>
+    <div class="clock">
+      <div class="time" id="clockTime">--:--:--</div>
+      <div class="date" id="clockDate"></div>
+    </div>
+    <button class="btn-in"  id="btnIn"  onclick="doClock('เข้า')">🟢 ลงเวลาเข้า</button>
+    <button class="btn-out" id="btnOut" onclick="doClock('ออก')">🟠 ลงเวลาออก</button>
+    <div id="mainMsg" class="msg"></div>
+    <button class="btn-gold hidden" id="btnAdmin" onclick="enterAdmin()">🛠 หน้าผู้ดูแลระบบ</button>
+    <button class="btn-link" onclick="logout()">ออกจากระบบ</button>
+  </div>
+
+  <!-- ประวัติ -->
+  <div id="histCard" class="card hidden">
+    <b style="color:var(--navy)">ประวัติการลงเวลาล่าสุด</b>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>วันที่</th><th>เวลา</th><th>ประเภท</th><th>สถานะ</th></tr></thead>
+      <tbody id="histBody"><tr><td colspan="4">กำลังโหลด…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <!-- ================= หน้าแอดมิน ================= -->
+  <div id="adminView" class="hidden">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div>🛠 <b style="color:var(--navy)">ผู้ดูแลระบบ</b> — <span id="adminName"></span></div>
+      <div class="bar">
+        <button class="btn-sm btn-ghost" onclick="leaveAdmin()">← กลับหน้าลงเวลา</button>
+        <button class="btn-sm btn-ghost" onclick="logout()">ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="day" onclick="tab('day')">📋 การลงเวลารายวัน</button>
+      <button data-tab="emp" onclick="tab('emp')">👥 บุคลากร</button>
+      <button data-tab="rep" onclick="tab('rep')">📊 รายงานประจำเดือน</button>
+      <button data-tab="set" onclick="tab('set')">⚙ ตั้งค่า</button>
+      <button data-tab="log" onclick="tab('log')">🧾 บันทึกระบบ</button>
+    </div>
+
+    <!-- รายวัน -->
+    <div id="tab-day" class="card hidden">
+      <div class="bar">
+        <input type="date" id="dayDate" onchange="loadDay()">
+        <button class="btn-sm btn-navy" onclick="loadDay()">🔄 รีเฟรช</button>
+      </div>
+      <div class="stats" id="dayStats"></div>
+      <div id="dayMsg" class="msg"></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>รหัส</th><th class="l">ชื่อ-สกุล</th><th class="l">กลุ่มงาน</th><th>เข้า</th><th>ออก</th></tr></thead>
+        <tbody id="dayBody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- บุคลากร -->
+    <div id="tab-emp" class="hidden">
+      <div class="card" id="empFormCard" style="display:none">
+        <h2 id="empFormTitle">เพิ่มบุคลากร</h2>
+        <div class="grid2">
+          <div><label>รหัสบุคลากร</label><input id="fEmpId" placeholder="เช่น T008"></div>
+          <div><label>ชื่อ-สกุล</label><input id="fName" placeholder="เช่น นายสมชาย ใจดี"></div>
+          <div><label>ตำแหน่ง</label><input id="fPos" placeholder="เช่น ครู"></div>
+          <div><label>กลุ่มงาน</label><input id="fDept" placeholder="เช่น แผนกวิชาช่างยนต์"></div>
+          <div><label>บทบาท</label>
+            <select id="fRole"><option value="user">ผู้ใช้ทั่วไป</option><option value="admin">ผู้ดูแลระบบ (admin)</option></select></div>
+          <div><label>สถานะ</label>
+            <select id="fStatus"><option value="active">ใช้งาน (active)</option><option value="inactive">ระงับ / ลาออก (inactive)</option></select></div>
+        </div>
+        <p class="hint">บุคลากรที่ลาออก/ย้าย ให้เปลี่ยนสถานะเป็น "ระงับ" แทนการลบ เพื่อเก็บประวัติไว้อ้างอิง</p>
+        <div class="bar" style="margin-top:12px">
+          <button class="btn-sm btn-navy" id="btnSaveEmp" onclick="saveEmp()">💾 บันทึก</button>
+          <button class="btn-sm btn-ghost" onclick="closeEmpForm()">ยกเลิก</button>
+        </div>
+        <div id="empFormMsg" class="msg"></div>
+      </div>
+
+      <div class="card" id="pinCard" style="display:none">
+        <h2>ตั้ง/รีเซ็ต PIN — <span id="pinWho"></span></h2>
+        <label>PIN ใหม่ (ตัวเลข 4–6 หลัก)</label>
+        <input id="fPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6">
+        <p class="hint">ระบบเก็บเป็นค่าแฮชเท่านั้น หลังบันทึกจะไม่มีใครดู PIN นี้ได้อีก — แจ้งเจ้าตัวโดยตรง</p>
+        <div class="bar" style="margin-top:12px">
+          <button class="btn-sm btn-navy" id="btnSavePin" onclick="savePin()">🔑 ตั้ง PIN</button>
+          <button class="btn-sm btn-ghost" onclick="closePin()">ยกเลิก</button>
+        </div>
+        <div id="pinMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="bar">
+          <input id="empSearch" placeholder="🔍 ค้นหารหัส / ชื่อ / กลุ่มงาน" oninput="renderEmps()">
+          <select id="empFilter" onchange="renderEmps()">
+            <option value="active">เฉพาะที่ใช้งาน</option>
+            <option value="all">ทั้งหมด</option>
+            <option value="inactive">เฉพาะที่ระงับ</option>
+          </select>
+          <button class="btn-sm btn-navy" onclick="openEmpForm(null)">+ เพิ่มบุคลากร</button>
+        </div>
+        <div id="empMsg" class="msg"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>รหัส</th><th class="l">ชื่อ-สกุล</th><th class="l">ตำแหน่ง</th><th class="l">กลุ่มงาน</th><th>สถานะ</th><th></th></tr></thead>
+          <tbody id="empBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- รายงาน -->
+    <div id="tab-rep" class="card hidden">
+      <div class="bar">
+        <input type="month" id="repMonth">
+        <button class="btn-sm btn-navy" onclick="loadReport()">📊 สร้างรายงาน</button>
+        <button class="btn-sm btn-ghost" id="btnRepCsv" onclick="downloadReport()" disabled>⬇ ดาวน์โหลดรายงาน (CSV)</button>
+        <button class="btn-sm btn-ghost" onclick="downloadRaw()">⬇ ข้อมูลดิบทั้งเดือน (CSV)</button>
+      </div>
+      <p class="hint">ไฟล์ CSV เปิดด้วย Excel ได้ทันที — แนะนำดาวน์โหลด "ข้อมูลดิบ" เก็บสำรองทุกสิ้นเดือน</p>
+      <div id="repMsg" class="msg"></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>รหัส</th><th class="l">ชื่อ-สกุล</th><th class="l">ตำแหน่ง</th><th class="l">กลุ่มงาน</th>
+                   <th>วันที่มาลงเวลา</th><th>มาสาย</th><th>ออกก่อนเวลา</th><th>ไม่ลงเวลาออก</th></tr></thead>
+        <tbody id="repBody"><tr><td colspan="8" class="none">เลือกเดือนแล้วกด "สร้างรายงาน"</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <!-- ตั้งค่า -->
+    <div id="tab-set" class="card hidden">
+      <h2>พื้นที่วิทยาลัย (Geofencing)</h2>
+      <div class="grid2">
+        <div><label>ละติจูด (SITE_LAT)</label><input id="sLat" inputmode="decimal"></div>
+        <div><label>ลองจิจูด (SITE_LNG)</label><input id="sLng" inputmode="decimal"></div>
+      </div>
+      <button class="btn-sm btn-ghost" style="margin-top:8px" onclick="useMyLocation()">📍 ใช้ตำแหน่งปัจจุบันของฉัน</button>
+      <p class="hint">ใช้ปุ่มนี้เฉพาะตอนยืนอยู่ ณ จุดกึ่งกลางของวิทยาลัยเท่านั้น</p>
+      <label>รัศมีที่อนุญาต (เมตร)</label><input id="sRadius" inputmode="numeric">
+      <p class="hint">GPS ในอาคารคลาดเคลื่อนได้ 20–100 ม. แนะนำ 200–400 ม.</p>
+
+      <h2 style="margin-top:18px">เวลาทำงาน</h2>
+      <div class="grid2">
+        <div><label>เวลาเริ่มงาน (หลังจากนี้ = มาสาย)</label><input id="sStart" type="time"></div>
+        <div><label>เวลาเลิกงาน (ก่อนนี้ = ออกก่อนเวลา)</label><input id="sEnd" type="time"></div>
+      </div>
+
+      <h2 style="margin-top:18px">โหมดทดสอบ</h2>
+      <label>อนุญาตให้ลงเวลานอกพื้นที่</label>
+      <select id="sOutside">
+        <option value="NO">ไม่อนุญาต (ใช้งานจริง)</option>
+        <option value="YES">อนุญาต (ใช้เฉพาะตอนทดสอบ)</option>
+      </select>
+
+      <button class="btn-navy" id="btnSaveSet" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
+      <div id="setMsg" class="msg"></div>
+    </div>
+
+    <!-- บันทึกระบบ -->
+    <div id="tab-log" class="card hidden">
+      <div class="bar">
+        <input id="logSearch" placeholder="🔍 กรองตามรหัส / การกระทำ / ผลลัพธ์" oninput="renderLogs()">
+        <button class="btn-sm btn-navy" onclick="loadLogs()">🔄 รีเฟรช</button>
+      </div>
+      <p class="hint">แสดง 150 เหตุการณ์ล่าสุด รวมการเข้าสู่ระบบที่ล้มเหลวและการแก้ไขโดยแอดมิน</p>
+      <div id="logMsg" class="msg"></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>เวลา</th><th>รหัส</th><th>การกระทำ</th><th class="l">ผลลัพธ์</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- สถานะผู้ใช้ (เก็บเฉพาะโทเคนรายวัน ไม่เก็บ PIN) ----------
+  var S = null;
+  try { S = JSON.parse(localStorage.getItem('tc_session') || 'null'); } catch (e) { S = null; }
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function show(view) {
+    $('loginView').classList.toggle('hidden', view !== 'login');
+    $('mainView').classList.toggle('hidden', view !== 'main');
+    $('histCard').classList.toggle('hidden', view !== 'main');
+    $('adminView').classList.toggle('hidden', view !== 'admin');
+    $('app').classList.toggle('wide', view === 'admin');
+    window.scrollTo(0, 0);
+  }
+
+  function msg(id, cls, text) {
+    var el = $(id);
+    el.className = 'msg ' + cls;
+    el.textContent = text;
+  }
+  function clearMsg(id) { $(id).className = 'msg'; }
+
+  /** เรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ (POST /api/<ชื่อคำสั่ง>) + จัดการเซสชันหมดอายุ/ข้อผิดพลาดให้ในที่เดียว */
+  function api(fn, args, msgId, ok, done) {
+    fetch('api/' + fn, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ args: args || [] })
+    })
+      .then(function (res) {
+        return res.json().catch(function () {
+          return { ok: false, msg: 'เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ (' + res.status + ')' };
+        });
+      })
+      .then(function (r) {
+        if (done) done();
+        if (r && r.expired) { sessionExpired(); return; }
+        if (!r || !r.ok) { if (msgId) msg(msgId, 'err', '❌ ' + ((r && r.msg) || 'ไม่ทราบสาเหตุ')); return; }
+        ok(r);
+      })
+      .catch(function () {
+        if (done) done();
+        if (msgId) msg(msgId, 'err', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่');
+      });
+  }
+  function adminApi(fn, extra, msgId, ok, done) {
+    api(fn, [S.empId, S.token].concat(extra || []), msgId, ok, done);
+  }
+
+  // ---------- นาฬิกา ----------
+  setInterval(function () {
+    var n = new Date();
+    $('clockTime').textContent = n.toLocaleTimeString('th-TH', { hour12: false });
+    $('clockDate').textContent =
+      n.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }, 500);
+
+  // ---------- เข้าสู่ระบบ ----------
+  function doLogin() {
+    var id = $('empId').value.trim();
+    var pin = $('pin').value.trim();
+    if (!id || !pin) { msg('loginMsg', 'err', 'กรุณากรอกรหัสบุคลากรและ PIN'); return; }
+    $('btnLogin').disabled = true;
+    msg('loginMsg', 'info', 'กำลังตรวจสอบ… (ถ้าระบบเพิ่งตื่น อาจใช้เวลาถึง 1 นาที)');
+    api('login', [id, pin], 'loginMsg', function (r) {
+      S = { empId: r.empId, name: r.name, position: r.position, role: r.role, token: r.token };
+      try { localStorage.setItem('tc_session', JSON.stringify(S)); } catch (e) {}
+      $('pin').value = '';
+      clearMsg('loginMsg');
+      enterMain();
+    }, function () { $('btnLogin').disabled = false; });
+  }
+
+  function logout() {
+    try { localStorage.removeItem('tc_session'); } catch (e) {}
+    S = null;
+    show('login');
+  }
+
+  function sessionExpired() {
+    logout();
+    msg('loginMsg', 'err', 'ขึ้นวันใหม่แล้ว กรุณาเข้าสู่ระบบอีกครั้ง');
+  }
+
+  function enterMain() {
+    $('whoName').textContent = S.name;
+    $('whoPos').textContent = S.position ? '(' + S.position + ')' : '';
+    $('btnAdmin').classList.toggle('hidden', S.role !== 'admin');
+    show('main');
+    loadHistory();
+  }
+
+  // ---------- ลงเวลา ----------
+  function doClock(action) {
+    if (!navigator.geolocation) {
+      msg('mainMsg', 'err', 'อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง GPS'); return;
+    }
+    setButtons(true);
+    msg('mainMsg', 'info', '📍 กำลังอ่านพิกัด GPS…');
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        msg('mainMsg', 'info', '⏳ กำลังบันทึกเวลา…');
+        api('clock', [S.empId, S.token, action, pos.coords.latitude, pos.coords.longitude,
+                      Math.round(pos.coords.accuracy)], 'mainMsg', function (r) {
+          msg('mainMsg', 'ok', '✅ ' + r.msg);
+          loadHistory();
+        }, function () { setButtons(false); });
+      },
+      function () {
+        setButtons(false);
+        msg('mainMsg', 'err', 'อ่านพิกัดไม่สำเร็จ: กรุณาอนุญาตการเข้าถึงตำแหน่ง (Location) แล้วลองใหม่');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  function setButtons(busy) {
+    $('btnIn').disabled = busy;
+    $('btnOut').disabled = busy;
+  }
+
+  function statusCell(status) {
+    var bad = status === 'มาสาย' || status === 'ออกก่อนเวลา';
+    return '<td' + (bad ? ' class="late"' : '') + '>' + esc(status) + '</td>';
+  }
+
+  // ---------- ประวัติ ----------
+  function loadHistory() {
+    api('getHistory', [S.empId, S.token], null, function (r) {
+      var tb = $('histBody');
+      if (!r.rows.length) { tb.innerHTML = '<tr><td colspan="4">ยังไม่มีประวัติการลงเวลา</td></tr>'; return; }
+      tb.innerHTML = r.rows.map(function (x) {
+        return '<tr><td>' + esc(x.date) + '</td><td>' + esc(x.time) + '</td><td>' +
+               esc(x.action) + '</td>' + statusCell(x.status) + '</tr>';
+      }).join('');
+    });
+  }
+
+  /* =================== หน้าแอดมิน =================== */
+
+  var EMPS = [], LOGS = [], REPORT = null, curTab = 'day', editingId = null, pinId = null;
+
+  function pad2(n) { return ('0' + n).slice(-2); }
+  function todayStr() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+
+  function enterAdmin() {
+    $('adminName').textContent = S.name;
+    if (!$('dayDate').value) $('dayDate').value = todayStr();
+    if (!$('repMonth').value) $('repMonth').value = todayStr().slice(0, 7);
+    show('admin');
+    tab(curTab);
+  }
+  function leaveAdmin() { enterMain(); }
+
+  function tab(name) {
+    curTab = name;
+    ['day', 'emp', 'rep', 'set', 'log'].forEach(function (t) {
+      $('tab-' + t).classList.toggle('hidden', t !== name);
+    });
+    Array.prototype.forEach.call($('tabs').children, function (b) {
+      b.classList.toggle('on', b.getAttribute('data-tab') === name);
+    });
+    if (name === 'day') loadDay();
+    if (name === 'emp') loadEmps();
+    if (name === 'set') loadSettings();
+    if (name === 'log') loadLogs();
+  }
+
+  // ----- การลงเวลารายวัน -----
+  function loadDay() {
+    msg('dayMsg', 'info', 'กำลังโหลด…');
+    adminApi('adminDay', [$('dayDate').value], 'dayMsg', function (r) {
+      clearMsg('dayMsg');
+      var came = 0, late = 0, out = 0;
+      r.rows.forEach(function (x) {
+        if (x.inTime) came++;
+        if (x.inStatus === 'มาสาย') late++;
+        if (x.outTime) out++;
+      });
+      $('dayStats').innerHTML =
+        stat(r.rows.length, 'บุคลากรทั้งหมด') + stat(came, 'ลงเวลาเข้าแล้ว') +
+        stat(late, 'มาสาย') + stat(r.rows.length - came, 'ยังไม่ลงเวลาเข้า') + stat(out, 'ลงเวลาออกแล้ว');
+      $('dayBody').innerHTML = r.rows.length ? r.rows.map(function (x) {
+        return '<tr><td>' + esc(x.empId) + '</td><td class="l">' + esc(x.name) + '</td><td class="l">' +
+               esc(x.dept) + '</td>' + timeCell(x.inTime, x.inStatus, x.inDist) +
+               timeCell(x.outTime, x.outStatus, x.outDist) + '</tr>';
+      }).join('') : '<tr><td colspan="5" class="none">ไม่มีบุคลากรที่ใช้งานอยู่</td></tr>';
+    });
+  }
+  function stat(n, label) { return '<div class="stat"><b>' + n + '</b><span>' + esc(label) + '</span></div>'; }
+  function timeCell(t, status, dist) {
+    if (!t) return '<td class="none">—</td>';
+    var bad = status === 'มาสาย' || status === 'ออกก่อนเวลา';
+    var tip = dist != null ? ' title="ห่างจุดกำหนด ' + esc(dist) + ' ม."' : '';
+    return '<td' + tip + (bad ? ' class="late"' : '') + '>' + esc(t.slice(0, 5)) +
+           (bad ? ' (' + esc(status) + ')' : '') + '</td>';
+  }
+
+  // ----- บุคลากร -----
+  function loadEmps() {
+    msg('empMsg', 'info', 'กำลังโหลด…');
+    adminApi('adminListEmployees', [], 'empMsg', function (r) {
+      clearMsg('empMsg');
+      EMPS = r.rows;
+      renderEmps();
+    });
+  }
+
+  function renderEmps() {
+    var q = $('empSearch').value.trim().toLowerCase();
+    var f = $('empFilter').value;
+    var list = EMPS.filter(function (e) {
+      if (f !== 'all' && e.status !== f) return false;
+      return !q || (e.empId + ' ' + e.name + ' ' + e.dept + ' ' + e.position).toLowerCase().indexOf(q) >= 0;
+    });
+    $('empBody').innerHTML = list.length ? list.map(function (e) {
+      var tags = (e.role === 'admin' ? ' <span class="badge admin">admin</span>' : '') +
+                 (!e.hasPin ? ' <span class="badge nopin">ยังไม่มี PIN</span>' : '');
+      var st = e.status === 'active' ? 'ใช้งาน' : '<span class="badge off">ระงับ</span>';
+      return '<tr><td>' + esc(e.empId) + '</td><td class="l">' + esc(e.name) + tags + '</td><td class="l">' +
+             esc(e.position) + '</td><td class="l">' + esc(e.dept) + '</td><td>' + st + '</td><td>' +
+             '<button class="btn-sm btn-ghost" data-id="' + esc(e.empId) + '" onclick="openEmpForm(this.dataset.id)">✏ แก้ไข</button> ' +
+             '<button class="btn-sm btn-ghost" data-id="' + esc(e.empId) + '" onclick="openPin(this.dataset.id)">🔑 PIN</button></td></tr>';
+    }).join('') : '<tr><td colspan="6" class="none">ไม่พบข้อมูล</td></tr>';
+  }
+
+  function findEmp(id) { return EMPS.filter(function (e) { return e.empId === id; })[0]; }
+
+  function openEmpForm(id) {
+    closePin();
+    editingId = id;
+    var e = id ? findEmp(id) : { empId: '', name: '', position: '', dept: '', role: 'user', status: 'active' };
+    $('empFormTitle').textContent = id ? 'แก้ไขข้อมูล ' + e.name : 'เพิ่มบุคลากร';
+    $('fEmpId').value = e.empId; $('fEmpId').readOnly = !!id;
+    $('fName').value = e.name; $('fPos').value = e.position; $('fDept').value = e.dept;
+    $('fRole').value = e.role; $('fStatus').value = e.status;
+    clearMsg('empFormMsg');
+    $('empFormCard').style.display = '';
+    $('empFormCard').scrollIntoView({ behavior: 'smooth' });
+    (id ? $('fName') : $('fEmpId')).focus();
+  }
+  function closeEmpForm() { $('empFormCard').style.display = 'none'; editingId = null; }
+
+  function saveEmp() {
+    var d = { empId: $('fEmpId').value.trim(), name: $('fName').value.trim(), position: $('fPos').value.trim(),
+              dept: $('fDept').value.trim(), role: $('fRole').value, status: $('fStatus').value };
+    var isNew = !editingId;
+    $('btnSaveEmp').disabled = true;
+    msg('empFormMsg', 'info', 'กำลังบันทึก…');
+    adminApi('adminSaveEmployee', [d, isNew], 'empFormMsg', function (r) {
+      closeEmpForm();
+      msg('empMsg', 'ok', '✅ ' + r.msg + (isNew ? ' — อย่าลืมกด 🔑 PIN เพื่อตั้ง PIN ให้' : ''));
+      adminApi('adminListEmployees', [], 'empMsg', function (r2) { EMPS = r2.rows; renderEmps(); });
+    }, function () { $('btnSaveEmp').disabled = false; });
+  }
+
+  function openPin(id) {
+    closeEmpForm();
+    pinId = id;
+    var e = findEmp(id);
+    $('pinWho').textContent = e.empId + ' ' + e.name;
+    $('fPin').value = '';
+    clearMsg('pinMsg');
+    $('pinCard').style.display = '';
+    $('pinCard').scrollIntoView({ behavior: 'smooth' });
+    $('fPin').focus();
+  }
+  function closePin() { $('pinCard').style.display = 'none'; pinId = null; }
+
+  function savePin() {
+    var pin = $('fPin').value.trim();
+    if (!/^\d{4,6}$/.test(pin)) { msg('pinMsg', 'err', 'PIN ต้องเป็นตัวเลข 4–6 หลัก'); return; }
+    $('btnSavePin').disabled = true;
+    adminApi('adminSetPin', [pinId, pin], 'pinMsg', function (r) {
+      var e = findEmp(pinId); if (e) e.hasPin = true;
+      closePin();
+      renderEmps();
+      msg('empMsg', 'ok', '✅ ' + r.msg);
+    }, function () { $('btnSavePin').disabled = false; $('fPin').value = ''; });
+  }
+
+  // ----- รายงาน -----
+  function loadReport() {
+    var ym = $('repMonth').value;
+    if (!ym) { msg('repMsg', 'err', 'กรุณาเลือกเดือน'); return; }
+    msg('repMsg', 'info', 'กำลังสร้างรายงาน…');
+    adminApi('adminReport', [ym], 'repMsg', function (r) {
+      REPORT = r;
+      msg('repMsg', 'ok', 'รายงานเดือน ' + r.ym + ' — บุคลากร ' + r.rows.length + ' คน');
+      $('btnRepCsv').disabled = false;
+      $('repBody').innerHTML = r.rows.map(function (x) {
+        return '<tr><td>' + esc(x.empId) + '</td><td class="l">' + esc(x.name) + '</td><td class="l">' +
+               esc(x.position) + '</td><td class="l">' + esc(x.dept) + '</td><td>' + x.present + '</td>' +
+               '<td' + (x.late ? ' class="late"' : '') + '>' + x.late + '</td>' +
+               '<td' + (x.early ? ' class="late"' : '') + '>' + x.early + '</td>' +
+               '<td' + (x.noOut ? ' class="late"' : '') + '>' + x.noOut + '</td></tr>';
+      }).join('') || '<tr><td colspan="8" class="none">ไม่มีข้อมูล</td></tr>';
+    });
+  }
+
+  function downloadReport() {
+    if (!REPORT) return;
+    var rows = [['รหัสบุคลากร', 'ชื่อ-สกุล', 'ตำแหน่ง', 'กลุ่มงาน', 'วันที่มาลงเวลา', 'มาสาย (ครั้ง)',
+                 'ออกก่อนเวลา (ครั้ง)', 'ไม่ลงเวลาออก (ครั้ง)']];
+    REPORT.rows.forEach(function (x) {
+      rows.push([x.empId, x.name, x.position, x.dept, x.present, x.late, x.early, x.noOut]);
+    });
+    saveCsv('รายงานลงเวลา-' + REPORT.ym + '.csv', rows);
+  }
+
+  function downloadRaw() {
+    var ym = $('repMonth').value;
+    if (!ym) { msg('repMsg', 'err', 'กรุณาเลือกเดือน'); return; }
+    msg('repMsg', 'info', 'กำลังเตรียมไฟล์…');
+    adminApi('adminExportMonth', [ym], 'repMsg', function (r) {
+      var rows = [['วันที่', 'เวลา', 'รหัสบุคลากร', 'ชื่อ-สกุล', 'ประเภท', 'สถานะ', 'Lat', 'Lng',
+                   'ระยะห่าง(ม.)', 'ในพื้นที่', 'ความแม่นยำGPS(ม.)']];
+      r.rows.forEach(function (x) {
+        rows.push([x.work_date, x.work_time, x.emp_id, x.emp_name, x.action, x.status, x.lat, x.lng,
+                   x.dist_m, x.in_area ? 'ใช่' : 'ไม่', x.accuracy_m]);
+      });
+      saveCsv('ข้อมูลลงเวลา-' + r.ym + '.csv', rows);
+      msg('repMsg', 'ok', 'ดาวน์โหลดข้อมูลดิบ ' + r.rows.length + ' รายการแล้ว');
+    });
+  }
+
+  /** สร้างไฟล์ CSV (UTF-8 + BOM ให้ Excel อ่านภาษาไทยถูก) */
+  function saveCsv(filename, rows) {
+    var csv = rows.map(function (r) {
+      return r.map(function (v) {
+        var s = String(v == null ? '' : v);
+        if (/^[=+\-@]/.test(s)) s = "'" + s;          // กันสูตรใน Excel
+        return '"' + s.replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\r\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  // ----- ตั้งค่า -----
+  function loadSettings() {
+    msg('setMsg', 'info', 'กำลังโหลด…');
+    adminApi('adminGetSettings', [], 'setMsg', function (r) {
+      clearMsg('setMsg');
+      var s = r.settings;
+      $('sLat').value = s.SITE_LAT || ''; $('sLng').value = s.SITE_LNG || '';
+      $('sRadius').value = s.RADIUS_M || '';
+      $('sStart').value = s.WORK_START || ''; $('sEnd').value = s.WORK_END || '';
+      $('sOutside').value = String(s.ALLOW_OUTSIDE || 'NO').toUpperCase() === 'YES' ? 'YES' : 'NO';
+    });
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { msg('setMsg', 'err', 'อุปกรณ์นี้ไม่รองรับ GPS'); return; }
+    msg('setMsg', 'info', '📍 กำลังอ่านพิกัด…');
+    navigator.geolocation.getCurrentPosition(function (p) {
+      $('sLat').value = p.coords.latitude.toFixed(6);
+      $('sLng').value = p.coords.longitude.toFixed(6);
+      msg('setMsg', 'info', 'ได้พิกัดแล้ว (ความแม่นยำ ±' + Math.round(p.coords.accuracy) + ' ม.) — กด "บันทึกการตั้งค่า" เพื่อใช้งาน');
+    }, function () {
+      msg('setMsg', 'err', 'อ่านพิกัดไม่สำเร็จ กรุณาอนุญาตการเข้าถึงตำแหน่ง');
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  }
+
+  function saveSettings() {
+    var d = { SITE_LAT: $('sLat').value, SITE_LNG: $('sLng').value, RADIUS_M: $('sRadius').value,
+              WORK_START: $('sStart').value, WORK_END: $('sEnd').value, ALLOW_OUTSIDE: $('sOutside').value };
+    if (d.ALLOW_OUTSIDE === 'YES' &&
+        !confirm('เปิดให้ลงเวลานอกพื้นที่ได้ — ควรใช้เฉพาะตอนทดสอบเท่านั้น ยืนยัน?')) return;
+    $('btnSaveSet').disabled = true;
+    msg('setMsg', 'info', 'กำลังบันทึก…');
+    adminApi('adminSaveSettings', [d], 'setMsg', function (r) {
+      msg('setMsg', 'ok', '✅ ' + r.msg);
+    }, function () { $('btnSaveSet').disabled = false; });
+  }
+
+  // ----- บันทึกระบบ -----
+  function loadLogs() {
+    msg('logMsg', 'info', 'กำลังโหลด…');
+    adminApi('adminLogs', [], 'logMsg', function (r) {
+      clearMsg('logMsg');
+      LOGS = r.rows;
+      renderLogs();
+    });
+  }
+
+  function renderLogs() {
+    var q = $('logSearch').value.trim().toLowerCase();
+    var list = LOGS.filter(function (x) {
+      return !q || (x.empId + ' ' + x.action + ' ' + x.result).toLowerCase().indexOf(q) >= 0;
+    });
+    $('logBody').innerHTML = list.length ? list.map(function (x) {
+      var bad = String(x.result).indexOf('ล้มเหลว') === 0;
+      return '<tr><td>' + esc(x.ts) + '</td><td>' + esc(x.empId) + '</td><td>' + esc(x.action) + '</td>' +
+             '<td class="l' + (bad ? ' late' : '') + '" style="white-space:normal">' + esc(x.result) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="none">ไม่พบข้อมูล</td></tr>';
+  }
+
+  // ---------- เริ่มต้น ----------
+  if (S && S.token) enterMain(); else show('login');
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+
+# ระบบเดิม (Google Sheet) — เก็บไว้ในเครื่องเท่านั้น
+legacy-google-sheets/
