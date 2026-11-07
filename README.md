@@ -13,11 +13,8 @@
 | `server.js` | เซิร์ฟเวอร์ทั้งหมด (ลงเวลา, geofencing, PIN, หน้าแอดมิน, ติดต่อ Supabase) |
 | `public/index.html` | หน้าเว็บ — บุคลากรใช้ลงเวลา + หน้าผู้ดูแลระบบสำหรับบทบาท `admin` |
 | `package.json`, `package-lock.json` | รายการโปรแกรมที่ต้องติดตั้ง (Render ใช้อัตโนมัติ) |
-| `render.yaml` | ค่าตั้งต้นสำหรับ Render (ใช้แบบ Blueprint ได้) |
 | `supabase-schema.sql` | สร้างตารางในฐานข้อมูล Supabase (รันครั้งเดียว) |
 | `employees-import.csv` | แม่แบบรายชื่อบุคลากรสำหรับนำเข้า Supabase (ชื่อสมมติ — แทนที่ด้วยข้อมูลจริง) |
-| `.env.example` | ตัวอย่างค่าตั้งค่า (ใช้เฉพาะตอนรันทดสอบในเครื่อง) |
-| `legacy-google-sheets/` | เวอร์ชันเดิมที่ใช้ Google Sheet (เก็บไว้อ้างอิงเท่านั้น ไม่ต้องอัปโหลด) |
 
 ## ขั้นตอนการติดตั้ง
 
@@ -37,7 +34,7 @@
 Render ดึงโค้ดจาก GitHub
 1. สมัคร/เข้าสู่ระบบ [github.com](https://github.com) → **New repository** → ชื่อ `kantang-timeclock` → เลือก **Private** → Create
 2. กด **uploading an existing file** → ลากไฟล์เหล่านี้ไปวาง:
-   `server.js`, `package.json`, `package-lock.json`, `render.yaml`, `supabase-schema.sql`, `README.md`, `HANDOVER.md`, `.gitignore`, `.env.example` และ**โฟลเดอร์** `public`
+   `server.js`, `package.json`, `package-lock.json`, `supabase-schema.sql`, `employees-import.csv`, `README.md`, `HANDOVER.md`, `.gitignore` และ**โฟลเดอร์** `public`
    - ❌ ห้ามอัปโหลดไฟล์ `.env` (ถ้ามี) และโฟลเดอร์ `node_modules`
 3. กด **Commit changes**
 
@@ -69,7 +66,6 @@ Render ดึงโค้ดจาก GitHub
 4. (แนะนำ) Advanced → **Health Check Path** = `/healthz`
 5. กด **Deploy Web Service** → รอจนขึ้น **Live** (2–5 นาที) → ใน Logs ต้องเห็น `✅ INIT_ADMIN: ตั้ง PIN ให้ … แล้ว`
 
-> ทางลัด: **New → Blueprint** แล้วเลือก repository — Render จะอ่าน `render.yaml` ตั้งค่าส่วนใหญ่ให้ และสุ่ม `PIN_SALT` ให้อัตโนมัติ
 
 ### ขั้นที่ 4 — เข้าระบบครั้งแรก
 1. เปิดลิงก์ `https://….onrender.com` → เข้าสู่ระบบด้วยรหัสและ PIN จาก `INIT_ADMIN`
@@ -118,7 +114,7 @@ Render ดึงโค้ดจาก GitHub
 - พิกัด GPS เก็บเฉพาะตอนกดลงเวลา — ควรแจ้งบุคลากรให้ทราบ
 
 ## ทดสอบในเครื่องตัวเอง (สำหรับผู้พัฒนา)
-ต้องมี Node.js 20+ → คัดลอก `.env.example` เป็น `.env` แล้วกรอกค่า →
+ต้องมี Node.js 22+ → สร้างไฟล์ `.env` ใส่ `SUPABASE_URL=…`, `SUPABASE_KEY=…`, `PIN_SALT=…` (บรรทัดละค่า — ห้ามอัปโหลดไฟล์นี้) →
 `npm install` → `node --env-file=.env server.js` → เปิด http://localhost:3000
 (GPS ในเบราว์เซอร์ใช้ได้บน localhost และ https เท่านั้น)
 

@@ -20,9 +20,8 @@
 | `public/index.html` | หน้าเว็บ (หน้าลงเวลา + หน้าผู้ดูแลระบบ) |
 | `supabase-schema.sql` | สคริปต์สร้างตารางฐานข้อมูล |
 | `employees-import.csv` | แม่แบบรายชื่อบุคลากร (ชื่อสมมติ) |
-| `render.yaml`, `package.json` | ค่าตั้งค่าสำหรับ Render |
+| `package.json`, `package-lock.json` | รายการโปรแกรมที่ Render ติดตั้งให้อัตโนมัติ |
 | `README.md` | คู่มือติดตั้งทีละขั้น |
-| `legacy-google-sheets/` | เวอร์ชันเดิมที่ใช้ Google Sheet (อ้างอิงเท่านั้น) |
 | `HANDOVER.md` | เอกสารฉบับนี้ |
 
 ## 3. บัญชีที่ต้องโอนให้ผู้ดูแลใหม่ (สำคัญ)
