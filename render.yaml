@@ -10,7 +10,7 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
       - key: SUPABASE_URL
         sync: false        # กรอกเองตอนสร้าง
       - key: SUPABASE_KEY

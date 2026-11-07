@@ -16,7 +16,9 @@ const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const TZ = 'Asia/Bangkok';
-const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+// รับได้ทั้ง https://xxx.supabase.co และแบบที่คัดลอกมาพร้อม /rest/v1 หรือ / ต่อท้าย
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim()
+  .replace(/\/+$/, '').replace(/\/rest\/v1$/i, '').replace(/\/+$/, '');
 const SUPABASE_KEY = String(process.env.SUPABASE_KEY || '').trim();
 const PIN_SALT = String(process.env.PIN_SALT || '');
 
@@ -31,6 +33,11 @@ if (missing.length) {
   process.exit(1);
 }
 if (PIN_SALT.length < 32) console.warn('⚠ PIN_SALT สั้นเกินไป ควรยาวอย่างน้อย 32 ตัวอักษร');
+if (!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(SUPABASE_URL)) {
+  console.warn('⚠ SUPABASE_URL ดูไม่เหมือน Project URL (ควรเป็น https://xxxx.supabase.co): ' + SUPABASE_URL);
+}
+console.log('เชื่อมต่อฐานข้อมูล: ' + SUPABASE_URL + ' (คีย์แบบ ' +
+            (SUPABASE_KEY.startsWith('sb_secret_') ? 'secret' : SUPABASE_KEY.startsWith('sb_') ? '⚠ publishable — ใช้ไม่ได้ ต้องเป็น secret' : 'legacy JWT') + ')');
 
 /* ============================================================
  * 1) การยืนยันตัวตน (รหัสบุคลากร + PIN, เก็บเป็นแฮชเท่านั้น)
