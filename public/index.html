@@ -89,6 +89,24 @@
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
   @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
   .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+  /* พิมพ์รายงาน */
+  @media print {
+    @page { size: A4 landscape; margin: 12mm; }
+    body { background: #fff; display: block; min-height: 0; }
+    .head, .tabs, .no-print, .msg { display: none !important; }
+    .app, .app.wide { max-width: none; padding: 0; }
+    .card { box-shadow: none; padding: 0; margin: 0; border-radius: 0; }
+    .tbl-wrap { overflow: visible; }
+    table { font-size: 11pt; }
+    th, td { white-space: normal; border: 1px solid #888; padding: 4px; color: #000; background: #fff; }
+    tr { break-inside: avoid; }
+    thead { display: table-header-group; }
+    .stat { background: #fff; border: 1px solid #888; border-radius: 0; padding: 4px; }
+    .stat b { font-size: 1.1rem; color: #000; }
+    .stat span { color: #000; }
+    .card h2 { color: #000; }
+  }
 </style>
 </head>
 <body>
@@ -134,7 +152,7 @@
 
   <!-- ================= หน้าแอดมิน ================= -->
   <div id="adminView" class="hidden">
-    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="card no-print" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
       <div>🛠 <b style="color:var(--navy)">ผู้ดูแลระบบ</b> — <span id="adminName"></span></div>
       <div class="bar">
         <button class="btn-sm btn-ghost" onclick="leaveAdmin()">← กลับหน้าลงเวลา</button>
@@ -144,6 +162,7 @@
 
     <div class="tabs" id="tabs">
       <button data-tab="day" onclick="tab('day')">📋 การลงเวลารายวัน</button>
+      <button data-tab="drep" onclick="tab('drep')">🗓 รายงานประจำวัน</button>
       <button data-tab="emp" onclick="tab('emp')">👥 บุคลากร</button>
       <button data-tab="rep" onclick="tab('rep')">📊 รายงานประจำเดือน</button>
       <button data-tab="set" onclick="tab('set')">⚙ ตั้งค่า</button>
@@ -161,6 +180,24 @@
       <div class="tbl-wrap"><table>
         <thead><tr><th>รหัส</th><th class="l">ชื่อ-สกุล</th><th class="l">กลุ่มงาน</th><th>เข้า</th><th>ออก</th></tr></thead>
         <tbody id="dayBody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- รายงานประจำวัน -->
+    <div id="tab-drep" class="card hidden">
+      <div class="bar no-print">
+        <input type="date" id="drepDate" onchange="loadDailyReport()">
+        <button class="btn-sm btn-navy" onclick="loadDailyReport()">🔄 รีเฟรช</button>
+        <button class="btn-sm btn-ghost" id="btnDrepCsv" onclick="downloadDailyReport()" disabled>⬇ ดาวน์โหลด (CSV)</button>
+        <button class="btn-sm btn-ghost" id="btnDrepPrint" onclick="window.print()" disabled>🖨 พิมพ์</button>
+      </div>
+      <h2 id="drepTitle" style="margin-top:14px"></h2>
+      <div class="stats" id="drepStats"></div>
+      <div id="drepMsg" class="msg"></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>ลำดับ</th><th>รหัส</th><th class="l">ชื่อ-สกุล</th><th class="l">ตำแหน่ง</th><th class="l">กลุ่มงาน</th>
+                   <th>เวลาเข้า</th><th>เวลาออก</th><th class="l">สถานะ</th></tr></thead>
+        <tbody id="drepBody"></tbody>
       </table></div>
     </div>
 
@@ -434,6 +471,7 @@
   function enterAdmin() {
     $('adminName').textContent = S.name;
     if (!$('dayDate').value) $('dayDate').value = todayStr();
+    if (!$('drepDate').value) $('drepDate').value = todayStr();
     if (!$('repMonth').value) $('repMonth').value = todayStr().slice(0, 7);
     show('admin');
     tab(curTab);
@@ -442,13 +480,14 @@
 
   function tab(name) {
     curTab = name;
-    ['day', 'emp', 'rep', 'set', 'log'].forEach(function (t) {
+    ['day', 'drep', 'emp', 'rep', 'set', 'log'].forEach(function (t) {
       $('tab-' + t).classList.toggle('hidden', t !== name);
     });
     Array.prototype.forEach.call($('tabs').children, function (b) {
       b.classList.toggle('on', b.getAttribute('data-tab') === name);
     });
     if (name === 'day') loadDay();
+    if (name === 'drep') loadDailyReport();
     if (name === 'emp') loadEmps();
     if (name === 'set') loadSettings();
     if (name === 'log') loadLogs();
@@ -482,6 +521,65 @@
     var tip = dist != null ? ' title="ห่างจุดกำหนด ' + esc(dist) + ' ม."' : '';
     return '<td' + tip + (bad ? ' class="late"' : '') + '>' + esc(t.slice(0, 5)) +
            (bad ? ' (' + esc(status) + ')' : '') + '</td>';
+  }
+
+  // ----- รายงานประจำวัน -----
+  var DREP = null;
+
+  /** สถานะของแต่ละคน — ระบบไม่มีข้อมูลการลา จึงใช้คำว่า "ไม่ได้ลงเวลา" แทน "ขาดงาน" */
+  function dailyStatus(x, isToday) {
+    if (!x.inTime && !x.outTime) return 'ไม่ได้ลงเวลา';
+    var n = [];
+    if (!x.inTime) n.push('ไม่ลงเวลาเข้า');
+    if (x.inStatus === 'มาสาย') n.push('มาสาย');
+    if (x.outStatus === 'ออกก่อนเวลา') n.push('ออกก่อนเวลา');
+    if (!x.outTime) n.push(isToday ? 'ยังไม่ลงเวลาออก' : 'ไม่ลงเวลาออก');
+    return n.join(', ') || 'ปกติ';
+  }
+
+  function thaiDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('th-TH',
+      { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  function loadDailyReport() {
+    $('btnDrepCsv').disabled = true;
+    $('btnDrepPrint').disabled = true;
+    msg('drepMsg', 'info', 'กำลังโหลด…');
+    adminApi('adminDay', [$('drepDate').value], 'drepMsg', function (r) {
+      clearMsg('drepMsg');
+      var isToday = r.date === r.today;
+      var came = 0, late = 0, early = 0, none = 0, noOut = 0;
+      r.rows.forEach(function (x) {
+        x.note = dailyStatus(x, isToday);
+        if (x.inTime) came++;
+        if (x.inStatus === 'มาสาย') late++;
+        if (x.outStatus === 'ออกก่อนเวลา') early++;
+        if (!x.inTime && !x.outTime) none++;
+        if (x.inTime && !x.outTime) noOut++;
+      });
+      DREP = r;
+      $('drepTitle').textContent = 'รายงานการลงเวลาปฏิบัติงานประจำ' + thaiDate(r.date) + ' — วิทยาลัยการอาชีพกันตัง';
+      $('drepStats').innerHTML = stat(r.rows.length, 'บุคลากรทั้งหมด') + stat(came, 'ลงเวลาเข้า') + stat(late, 'มาสาย') +
+        stat(early, 'ออกก่อนเวลา') + stat(noOut, isToday ? 'ยังไม่ลงเวลาออก' : 'ไม่ลงเวลาออก') + stat(none, 'ไม่ได้ลงเวลา');
+      $('drepBody').innerHTML = r.rows.length ? r.rows.map(function (x, i) {
+        var cls = x.note === 'ปกติ' ? '' : ' late';
+        return '<tr><td>' + (i + 1) + '</td><td>' + esc(x.empId) + '</td><td class="l">' + esc(x.name) + '</td><td class="l">' +
+               esc(x.position) + '</td><td class="l">' + esc(x.dept) + '</td><td>' + esc(x.inTime ? x.inTime.slice(0, 5) : '—') +
+               '</td><td>' + esc(x.outTime ? x.outTime.slice(0, 5) : '—') + '</td><td class="l' + cls + '">' + esc(x.note) + '</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="none">ไม่มีข้อมูล</td></tr>';
+      $('btnDrepCsv').disabled = false;
+      $('btnDrepPrint').disabled = false;
+    });
+  }
+
+  function downloadDailyReport() {
+    if (!DREP) return;
+    var rows = [['ลำดับ', 'รหัสบุคลากร', 'ชื่อ-สกุล', 'ตำแหน่ง', 'กลุ่มงาน', 'เวลาเข้า', 'เวลาออก', 'สถานะ']];
+    DREP.rows.forEach(function (x, i) {
+      rows.push([i + 1, x.empId, x.name, x.position, x.dept, x.inTime, x.outTime, x.note]);
+    });
+    saveCsv('รายงานประจำวัน-' + DREP.date + '.csv', rows);
   }
 
   // ----- บุคลากร -----

@@ -152,19 +152,21 @@ async function asAdmin(empId, token, fn) {
 
 const adminDay = (empId, token, date) => asAdmin(empId, token, async () => {
   date = /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : bkk().date;
-  const emps = await sbAll('employees?select=emp_id,name,dept&status=eq.active&order=emp_id');
+  const all = await sbAll('employees?select=emp_id,name,position,dept,status&order=emp_id');
   const att = await sbAll('attendance?select=emp_id,action,work_time,status,dist_m&work_date=eq.' + date + '&order=id');
   const map = {};
   att.forEach((a) => { (map[a.emp_id] = map[a.emp_id] || {})[a.action] = a; });
+  // รวมคนที่ถูกระงับภายหลังแต่มีการลงเวลาในวันนั้น เพื่อให้รายงานย้อนหลังครบ
+  const emps = all.filter((e) => e.status === 'active' || map[e.emp_id]);
   const rows = emps.map((e) => {
     const i = (map[e.emp_id] || {})['เข้า'], o = (map[e.emp_id] || {})['ออก'];
     return {
-      empId: e.emp_id, name: e.name, dept: e.dept,
+      empId: e.emp_id, name: e.name, position: e.position, dept: e.dept,
       inTime: i ? i.work_time : '', inStatus: i ? i.status : '', inDist: i ? i.dist_m : null,
       outTime: o ? o.work_time : '', outStatus: o ? o.status : '', outDist: o ? o.dist_m : null
     };
   });
-  return { ok: true, date, rows };
+  return { ok: true, date, today: bkk().date, rows };
 });
 
 const adminListEmployees = (empId, token) => asAdmin(empId, token, async () => {
