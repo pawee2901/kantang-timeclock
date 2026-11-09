@@ -162,9 +162,8 @@
 
     <div class="tabs" id="tabs">
       <button data-tab="day" onclick="tab('day')">📋 การลงเวลารายวัน</button>
-      <button data-tab="drep" onclick="tab('drep')">🗓 รายงานประจำวัน</button>
+      <button data-tab="rep" onclick="tab(repMode)">📊 รายงาน</button>
       <button data-tab="emp" onclick="tab('emp')">👥 บุคลากร</button>
-      <button data-tab="rep" onclick="tab('rep')">📊 รายงานประจำเดือน</button>
       <button data-tab="set" onclick="tab('set')">⚙ ตั้งค่า</button>
       <button data-tab="log" onclick="tab('log')">🧾 บันทึกระบบ</button>
     </div>
@@ -183,12 +182,18 @@
       </table></div>
     </div>
 
+    <!-- ปุ่มสลับรายงาน ประจำวัน / ประจำเดือน -->
+    <div class="tabs no-print hidden" id="repSwitch">
+      <button data-tab="drep" onclick="tab('drep')">🗓 รายงานประจำวัน</button>
+      <button data-tab="rep" onclick="tab('rep')">📅 รายงานประจำเดือน</button>
+    </div>
+
     <!-- รายงานประจำวัน -->
     <div id="tab-drep" class="card hidden">
       <div class="bar no-print">
         <input type="date" id="drepDate" onchange="loadDailyReport()">
         <button class="btn-sm btn-navy" onclick="loadDailyReport()">🔄 รีเฟรช</button>
-        <button class="btn-sm btn-ghost" id="btnDrepCsv" onclick="downloadDailyReport()" disabled>⬇ ดาวน์โหลด (CSV)</button>
+        <button class="btn-sm btn-ghost" id="btnDrepCsv" onclick="downloadDailyReport()" disabled>⬇ ดาวน์โหลดรายงาน (CSV)</button>
         <button class="btn-sm btn-ghost" id="btnDrepPrint" onclick="window.print()" disabled>🖨 พิมพ์</button>
       </div>
       <h2 id="drepTitle" style="margin-top:14px"></h2>
@@ -463,7 +468,7 @@
 
   /* =================== หน้าแอดมิน =================== */
 
-  var EMPS = [], LOGS = [], REPORT = null, curTab = 'day', editingId = null, pinId = null;
+  var EMPS = [], LOGS = [], REPORT = null, curTab = 'day', repMode = 'drep', editingId = null, pinId = null;
 
   function pad2(n) { return ('0' + n).slice(-2); }
   function todayStr() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -483,7 +488,13 @@
     ['day', 'drep', 'emp', 'rep', 'set', 'log'].forEach(function (t) {
       $('tab-' + t).classList.toggle('hidden', t !== name);
     });
+    var isRep = name === 'drep' || name === 'rep';
+    if (isRep) repMode = name;
+    $('repSwitch').classList.toggle('hidden', !isRep);
     Array.prototype.forEach.call($('tabs').children, function (b) {
+      b.classList.toggle('on', b.getAttribute('data-tab') === (isRep ? 'rep' : name));
+    });
+    Array.prototype.forEach.call($('repSwitch').children, function (b) {
       b.classList.toggle('on', b.getAttribute('data-tab') === name);
     });
     if (name === 'day') loadDay();
